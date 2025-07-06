@@ -1,0 +1,4 @@
+defaults:
+- data: alanine-10n-tbg
+- model: tbgcv
+- steeredmd: steeredmd

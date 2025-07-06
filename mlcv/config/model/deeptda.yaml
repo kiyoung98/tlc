@@ -1,0 +1,31 @@
+name: deeptda
+checkpoint: False
+representation: heavy_atom_distance
+model: {
+  n_states: 2,
+  n_cvs: 1,
+  target_centers: [-7, 7],
+  target_sigmas: [0.2, 0.2],
+  layers: [45, 24, 12, 1],
+  options: {
+    norm_in: {
+    },
+    nn: {
+      activation: "relu"
+    },
+  },
+}
+trainer:
+  early_stopping: {
+    monitor: "valid_loss",
+    min_delta: 0.1,
+    patience: 50
+  }
+  batch_size: 2000
+  max_epochs: 2000
+logger:
+  name: wandb
+  project: mlcv2
+  log_model: False
+  tags:
+  - baseline

@@ -1,0 +1,25 @@
+Bond(ACE1-CH3, ACE1-C),
+Bond(ACE1-C, ACE1-O),
+Bond(ACE1-H1, ACE1-CH3),
+Bond(ACE1-CH3, ACE1-H2),
+Bond(ACE1-CH3, ACE1-H3),
+
+Bond(ACE1-C, ALA2-N),
+
+Bond(ALA2-CA, ALA2-C),
+Bond(ALA2-C, ALA2-O),
+Bond(ALA2-CA, ALA2-CB),
+Bond(ALA2-CA, ALA2-HA),
+Bond(ALA2-N, ALA2-CA),
+Bond(ALA2-CB, ALA2-HB1),
+Bond(ALA2-CB, ALA2-HB2),
+Bond(ALA2-CB, ALA2-HB3),
+Bond(ALA2-N, ALA2-H),
+
+Bond(ALA2-C, NME3-N),
+
+Bond(NME3-C, NME3-H1),
+Bond(NME3-C, NME3-H2),
+Bond(NME3-C, NME3-H3),
+Bond(NME3-N, NME3-C),
+Bond(NME3-N, NME3-H),

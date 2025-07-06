@@ -1,0 +1,4 @@
+defaults:
+- data: dummy
+- model: dihedral
+- steeredmd: steeredmd

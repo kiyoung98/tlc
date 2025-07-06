@@ -1,0 +1,6 @@
+dir: ../simulation/dataset
+molecule: alanine
+temperature: 300.0
+version: tbg-10n
+input: distance
+atom: 22

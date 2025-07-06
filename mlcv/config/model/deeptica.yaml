@@ -1,0 +1,30 @@
+name: deeptica
+checkpoint: False
+representation: heavy_atom_distance
+model: {
+  n_cvs: 1,
+  layers: [45, 30, 30, 3],
+  options: {
+    norm_in: {
+    },
+    nn: {
+      activation: "tanh"
+    },
+    tica: {
+    }
+  },
+}
+trainer:
+  early_stopping: {
+    monitor: "valid_loss",
+    min_delta: 0.1,
+    patience: 10
+  }
+  batch_size: 2000
+  max_epochs: 2000
+logger:
+  name: wandb
+  project: mlcv2
+  log_model: False
+  tags:
+  - baseline

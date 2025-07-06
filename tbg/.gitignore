@@ -1,0 +1,16 @@
+AImplicitUnconstrained/*
+result_data/*
+models/*
+wandb/*
+res/* 
+
+**__pycache__**
+
+*.png
+*.npz
+*.npy
+*.pt
+*.pdb
+*.tgz
+*.xml
+*.h5

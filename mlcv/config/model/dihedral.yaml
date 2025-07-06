@@ -1,0 +1,23 @@
+name: dihedral
+representation: dihedral
+checkpoint: True
+model: {
+  layers: [45, 30, 15, 5],
+  n_states: 2,
+  options: {
+    norm_in: {
+    },
+    nn: {
+      activation: "relu"
+    },
+    lda: {
+      mode: "standard"
+    },
+  },
+}
+logger:
+  name: wandb
+  project: mlcv2
+  log_model: False
+  tags:
+  - baseline

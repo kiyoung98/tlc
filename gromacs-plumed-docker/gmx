@@ -1,0 +1,73 @@
+#!/bin/bash
+
+WORKDIR="$PWD"
+
+if [ -z "$GMX_DOUBLE" ]; then
+	GMX_DOUBLE=OFF
+	b=$(basename $0) 
+	[ $b = gmx_d -o $b = mdrun_d ] && GMX_DOUBLE=ON
+	export GMX_DOUBLE
+fi
+
+source /gromacs/gmx-chooser.sh
+
+# copy necessary files from PVC to scratchdir
+function copy () {
+	# copy HILLS and COLVAR files if present
+	cp HILLS COLVAR $SCRATCHDIR 2>/dev/null
+
+	# copy everything else
+	while test $# -gt 0; do
+	  case "$1" in
+	    -deffnm*)
+	      shift
+	      cp $1* $SCRATCHDIR
+	      shift
+	      ;;
+	    *)
+	      if [ -f "$1" ]; then
+		      cp "$1" $SCRATCHDIR
+	      fi
+	      shift
+	      ;;
+	  esac
+	done
+}
+
+# synchronise scratch to pvc
+function sync () {
+	rsync -aq $SCRATCHDIR/* $WORKDIR 2>/dev/null
+}
+
+function stop_sync() {
+	if [ -n "$sync_pid" ]; then
+		kill $sync_pid
+		wait
+		sync
+	fi
+}
+
+# sync one last time after completion
+trap stop_sync EXIT
+
+
+if [ ! -z "$SCRATCHDIR" ];
+then
+	touch "$SCRATCHDIR"/x || exit 1
+	rm -f "$SCRATCHDIR"/x
+	copy "$@"
+	cd $SCRATCHDIR || exit 1
+	while true
+	do
+		sleep 60
+		sync
+	done &
+	sync_pid=$!
+fi
+
+if [ $(basename $0 _d) = mdrun ]; then
+	gmx mdrun "$@"
+else
+	gmx "$@"
+fi 
+

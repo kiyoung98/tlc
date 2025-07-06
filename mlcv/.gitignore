@@ -1,0 +1,10 @@
+lightning_logs/
+outputs/
+wandb/
+__pycache__/
+mlcolvar/
+
+*.png
+*.pdf
+*.pt
+*.npy
