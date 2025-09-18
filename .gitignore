@@ -1,0 +1,7 @@
+.vscode/
+wandb/
+outputs/
+res/
+models/
+data/
+__pycache__/

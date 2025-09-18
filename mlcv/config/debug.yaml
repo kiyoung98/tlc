@@ -1,5 +1,0 @@
-defaults:
-- data: debug-data
-- model: tae
-- steeredmd: debug-steeredmd
-- metadynamics: debug-metadynamics

@@ -1,0 +1,32 @@
+# Base configuration for trpcage experiments
+model:
+  name: null
+  checkpoint: True
+  checkpoint_path: /home/kiyoung/tlc/models
+  descriptor: alpha_carbon_distance
+
+# Logger configuration  
+logger:
+  name: wandb
+  project: mlcv
+  log_model: False
+  tags:
+  - trpcage
+
+# Molecule configuration
+molecule: trpcage
+start_state: unfolded
+goal_state: folded
+num_samples: 2
+rmsd_threshold: 10 # angstrom
+
+# Simulation configuration
+simulation:
+  k: 10000  # Default value, can be overridden
+  timestep: 1
+  num_steps: 10000
+  friction: 0.001
+  temperature: 290
+  force_field: ["charmm36.xml", "implicit/gbn2.xml"]
+  platform: CUDA
+  precision: mixed

@@ -1,0 +1,11 @@
+defaults:
+  - base
+
+model:
+  name: rmsd
+  descriptor: heavy_atom
+
+logger:
+  tags:
+  - chignolin
+  - rmsd

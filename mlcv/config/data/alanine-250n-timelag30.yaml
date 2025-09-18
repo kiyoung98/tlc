@@ -1,6 +1,0 @@
-dir: ../simulation/dataset
-molecule: alanine
-temperature: 300.0
-version: timelag-250n-lag30
-input: distance
-atom: 22

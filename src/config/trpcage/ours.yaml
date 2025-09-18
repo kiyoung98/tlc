@@ -1,0 +1,10 @@
+defaults:
+  - base
+
+model:
+  name: ours
+
+logger:
+  tags:
+  - trpcage
+  - ours

@@ -1,8 +1,0 @@
-dir: ../simulation/dataset
-molecule: alanine
-temperature: 300.0
-# version: tbg-10n
-# version: timelag-10n-lag30
-version: debug-timelag-10n
-input: distance
-atom: 22
