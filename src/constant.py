@@ -7,13 +7,16 @@ COLORMAP="viridis"
 METHODS = [
   "deeptda",
   "deeptica",
-  "vae",
+  "vde",
   "tae",
   "ours",
 ]
 
 MOLECULES = [
   "chignolin",
+  "trpcage",
+  "chignolin_implicit",
+  "trpcage_implicit",
 ]
 
 COLORS = [

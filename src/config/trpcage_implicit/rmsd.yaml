@@ -6,5 +6,5 @@ model:
 
 logger:
   tags:
-  - chignolin
+  - trpcage_implicit
   - rmsd

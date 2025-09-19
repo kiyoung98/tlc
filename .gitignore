@@ -1,7 +1,9 @@
 .vscode/
 wandb/
 outputs/
-res/
+res*/
 models/
 data/
 __pycache__/
+tables/
+figures/

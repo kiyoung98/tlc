@@ -2,9 +2,9 @@ defaults:
   - base
 
 model:
-  name: rmsd
+  name: tae
 
 logger:
   tags:
-  - chignolin
-  - rmsd
+  - trpcage_implicit
+  - tae

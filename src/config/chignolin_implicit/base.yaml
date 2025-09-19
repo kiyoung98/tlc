@@ -1,4 +1,4 @@
-# Base configuration for trpcage experiments
+# Base configuration for chignolin experiments
 model:
   name: null
   checkpoint: True
@@ -12,10 +12,10 @@ logger:
   project: mlcv
   log_model: False
   tags:
-  - trpcage
+  - chignolin_implicit
 
 # Molecule configuration
-molecule: trpcage
+molecule: chignolin_implicit
 start_state: unfolded
 goal_state: folded
 num_samples: 2
@@ -27,7 +27,7 @@ simulation:
   timestep: 1
   num_steps: 100000
   friction: 0.001
-  temperature: 290
-  force_field: ["charmm36.xml", "charmm36/water.xml"]
+  temperature: 340
+  force_field: ["charmm36.xml", "implicit/gbn2.xml"]
   platform: CUDA
   precision: mixed

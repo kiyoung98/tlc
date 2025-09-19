@@ -2,9 +2,9 @@ defaults:
   - base
 
 model:
-  name: rmsd
+  name: ours
 
 logger:
   tags:
-  - chignolin
-  - rmsd
+  - chignolin_implicit
+  - ours

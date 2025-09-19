@@ -1,0 +1,10 @@
+defaults:
+  - base
+
+model:
+  name: deeptda
+
+logger:
+  tags:
+  - chignolin_implicit
+  - deeptda

@@ -1,0 +1,10 @@
+defaults:
+  - base
+
+model:
+  name: deeptda
+
+logger:
+  tags:
+  - trpcage_implicit
+  - deeptda

@@ -3,7 +3,6 @@ defaults:
 
 model:
   name: rmsd
-  descriptor: heavy_atom
 
 logger:
   tags:

@@ -2,9 +2,9 @@ defaults:
   - base
 
 model:
-  name: rmsd
+  name: vde
 
 logger:
   tags:
-  - chignolin
-  - rmsd
+  - trpcage
+  - vde

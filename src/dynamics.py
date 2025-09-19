@@ -19,39 +19,41 @@ def extract_cell_from_pdb(pdb_file):
     with open(pdb_file, 'r') as f:
         for line in f:
             if line.startswith('CRYST1'):
-                # CRYST1 레코드 형식: CRYST1 a b c alpha beta gamma spacegroup z
                 parts = line.split()
                 if len(parts) >= 4:
-                    a = float(parts[1])  # a 축 길이
-                    b = float(parts[2])  # b 축 길이  
-                    c = float(parts[3])  # c 축 길이
+                    a = float(parts[1])
+                    b = float(parts[2])  
+                    c = float(parts[3]) 
                     return torch.tensor([a, b, c])
                 break
-    
-    # CRYST1 레코드가 없으면 기본값 반환
     return torch.ones(3)
 
 class SteeredMolecularDynamics:
     def __init__(self, cfg, state):
         self.pdb_file = f"./data/{cfg.molecule}/{state}.pdb"
-        self.simulation, self.external_force = self._set_simulation(cfg, state)
-        self.position = self.report()[0]
-        self.num_atoms = self.position.shape[0]
-        self.alpha_carbon_indices = self.get_alpha_carbon_indices()
-        self.heavy_atom_indices = self.get_heavy_atom_indices()
-        
-        print(self.alpha_carbon_indices)
-        print(self.heavy_atom_indices)
+        self.simulation, self.external_force, self.ca_indices = self._set_simulation(cfg, state)
+        self.ca_position = self.report()[0]
         
     def _set_simulation(self, cfg, state):
-        forcefield = app.ForceField(*cfg.simulation.force_field)
         pdb = app.PDBFile(f"./data/{cfg.molecule}/{state}.pdb")
+        forcefield = app.ForceField(*cfg.simulation.force_field)
 
-        system = forcefield.createSystem(
-            pdb.topology,
-            constraints=app.HBonds,
-            ewaldErrorTolerance=0.0005,
-        )
+        if cfg.molecule in ["chignolin", "trpcage"]:
+            system = forcefield.createSystem(
+                pdb.topology,
+                nonbondedMethod=app.PME, 
+                nonbondedCutoff=0.95 * unit.nanometers, 
+                constraints=app.HBonds,
+                ewaldErrorTolerance=0.0005,
+            )
+        elif cfg.molecule in ["chignolin_implicit", "trpcage_implicit"]:
+            system = forcefield.createSystem(
+                pdb.topology,
+                constraints=app.HBonds,
+                ewaldErrorTolerance=0.0005,
+            )
+        else:
+            raise ValueError(f"State {cfg.molecule} not found")
 
         # integrator
         integrator = VVVRIntegrator(
@@ -66,8 +68,18 @@ class SteeredMolecularDynamics:
         external_force.addPerParticleParameter("fx")
         external_force.addPerParticleParameter("fy")
         external_force.addPerParticleParameter("fz")
-        for i in range(system.getNumParticles()):
+        
+        # Get alpha carbon indices for this topology
+        atoms = list(pdb.topology.atoms())
+        ca_indices = np.array([
+            i for i in range(len(atoms))
+            if atoms[i].name.strip() == 'CA'
+        ])
+        
+        # Add external force only to alpha carbons
+        for i in ca_indices:
             external_force.addParticle(i, [0, 0, 0])
+        
         # Set a unique force group for this external force
         external_force.setForceGroup(1)
         system.addForce(external_force)
@@ -90,17 +102,18 @@ class SteeredMolecularDynamics:
         simulation.context.setPositions(pdb.positions)
         simulation.minimizeEnergy()
 
-        return simulation, external_force
+        return simulation, external_force, ca_indices
 
     def step(self, external_forces):
-        for i in range(external_forces.shape[0]):
-            self.external_force.setParticleParameters(i, i, external_forces[i])
+        for force_idx, ca_idx in enumerate(self.ca_indices):
+            self.external_force.setParticleParameters(force_idx, ca_idx, external_forces[force_idx])
         self.external_force.updateParametersInContext(self.simulation.context)
         self.simulation.step(1)
 
     def report(self):
         state = self.simulation.context.getState(getPositions=True, getEnergy=True)
         position = state.getPositions(asNumpy=True).value_in_unit(unit.nanometer)
+        ca_position = position[self.ca_indices]  # Extract only alpha carbon positions
         total_potential = state.getPotentialEnergy().value_in_unit(unit.kilojoules / unit.mole)
         
         # Extract biased potential from CustomExternalForce using force group
@@ -108,23 +121,7 @@ class SteeredMolecularDynamics:
         biased_potential = biased_state.getPotentialEnergy().value_in_unit(unit.kilojoules / unit.mole)
         
         potential = total_potential - biased_potential
-        return position, potential
-
-    def get_alpha_carbon_indices(self): # TODO: mdtraj library
-        atoms = list(self.simulation.topology.atoms())
-        alpha_carbon_indices = np.array([
-            i for i in range(len(atoms))
-            if atoms[i].name.strip() == 'CA'
-        ])
-        return alpha_carbon_indices
-
-    def get_heavy_atom_indices(self): # TODO: mdtraj library
-        atoms = list(self.simulation.topology.atoms())
-        heavy_atom_indices = np.array([
-            i for i in range(len(atoms))
-            if atoms[i].element.atomic_number != 1  # Exclude hydrogen atoms
-        ])
-        return heavy_atom_indices
+        return ca_position, potential, biased_potential, total_potential
 
 
 class SMDs:
@@ -146,66 +143,65 @@ class SMDs:
         self._init_smds(cfg)
 
         self.pdb_file = self.smds[0].pdb_file
-        self.num_atoms = self.smds[0].num_atoms
-        self.alpha_carbon_indices = self.smds[0].alpha_carbon_indices
-        self.heavy_atom_indices = self.smds[0].heavy_atom_indices
+        self.ca_indices = self.smds[0].ca_indices
 
-        self.start_position = torch.tensor(SteeredMolecularDynamics(cfg, cfg.start_state).position, dtype=torch.float32, device=self.device).unsqueeze(0)
-        self.goal_position = torch.tensor(SteeredMolecularDynamics(cfg, cfg.goal_state).position, dtype=torch.float32, device=self.device).unsqueeze(0)
+        self.start_ca_position = torch.tensor(SteeredMolecularDynamics(cfg, cfg.start_state).ca_position, dtype=torch.float32, device=self.device).unsqueeze(0)
+        self.goal_ca_position = torch.tensor(SteeredMolecularDynamics(cfg, cfg.goal_state).ca_position, dtype=torch.float32, device=self.device).unsqueeze(0)
     
         if self.name == "rmsd":
-            self.start_cv = kabsch_rmsd(self.compute_descriptor(self.start_position), self.compute_descriptor(self.goal_position))
+            self.start_cv = kabsch_rmsd(self.start_ca_position, self.goal_ca_position)
             self.goal_cv = 0
         else:
-            self.start_cv = self.model(self.compute_descriptor(self.start_position))
-            self.goal_cv = self.model(self.compute_descriptor(self.goal_position))
+            self.start_cv = self.model(self.compute_descriptor(self.start_ca_position))
+            self.goal_cv = self.model(self.compute_descriptor(self.goal_ca_position))
 
-    def step(self, step, positions):
-        bias_forces = self.bias_force(step, positions).cpu().numpy()
+    def step(self, bias_ca_forces):
+        bias_ca_forces = bias_ca_forces.cpu().numpy()
         for i in range(self.num_samples):
-            self.smds[i].step(bias_forces[i])
+            self.smds[i].step(bias_ca_forces[i])
 
     def report(self):
-        positions = []
+        ca_positions = []
         potentials = []
+        biased_potentials = []
+        total_potentials = []
         for i in range(self.num_samples):
-            position, potential = self.smds[i].report()  
-            positions.append(position)
+            ca_position, potential, biased_potential, total_potential = self.smds[i].report()  
+            ca_positions.append(ca_position)
             potentials.append(potential)
-        positions = torch.tensor(np.array(positions), dtype=torch.float32, device=self.device)
+            biased_potentials.append(biased_potential)
+            total_potentials.append(total_potential)
+        ca_positions = torch.tensor(np.array(ca_positions), dtype=torch.float32, device=self.device)
         potentials = torch.tensor(np.array(potentials), dtype=torch.float32, device=self.device)
-        return positions, potentials
+        biased_potentials = torch.tensor(np.array(biased_potentials), dtype=torch.float32, device=self.device)
+        total_potentials = torch.tensor(np.array(total_potentials), dtype=torch.float32, device=self.device)
+        return ca_positions, potentials, biased_potentials, total_potentials
 
-    def bias_force(self, step, positions):
-        positions.requires_grad = True
+    def bias_ca_force(self, step, ca_positions):
+        ca_positions.requires_grad = True
         
         if self.name == "rmsd":
-            cv = kabsch_rmsd(self.compute_descriptor(positions), self.compute_descriptor(self.goal_position))
+            cv = kabsch_rmsd(ca_positions, self.goal_ca_position)
         elif self.name in METHODS:
-            cv = self.model(self.compute_descriptor(positions))
+            cv = self.model(self.compute_descriptor(ca_positions))
         else:
             raise ValueError(f"{self.name} not found")
 
         target_cv = self.start_cv + (self.goal_cv - self.start_cv) * (step / self.num_steps)
         bias_potential = 0.5 * self.k * torch.linalg.norm(target_cv - cv, ord=2)
-        bias_force = -torch.autograd.grad(bias_potential, positions, retain_graph=False)[0]
-        return bias_force
+        bias_ca_force = -torch.autograd.grad(bias_potential, ca_positions, retain_graph=False)[0]
+        return bias_ca_force.detach(), cv.squeeze(-1).detach(), target_cv.squeeze(-1).detach()
     
-    def compute_descriptor(self, positions):
-        if self.descriptor == "alpha_carbon_distance":
-            cell = extract_cell_from_pdb(self.pdb_file).to(device=positions.device, dtype=positions.dtype)
-            alpha_carbon_positions = positions[:, self.alpha_carbon_indices]
+    def compute_descriptor(self, ca_positions):
+        if self.descriptor == "pairwise_distance":
+            cell = extract_cell_from_pdb(self.pdb_file).to(device=ca_positions.device, dtype=ca_positions.dtype)
             ComputeDistances = PairwiseDistances(
-                n_atoms=alpha_carbon_positions.shape[1],
+                n_atoms=ca_positions.shape[1],
                 PBC=True,
                 cell=cell,
                 scaled_coords=False
             )
-            descriptors = ComputeDistances(alpha_carbon_positions)
-        elif self.descriptor == "alpha_carbon":
-            descriptors = positions[:, self.alpha_carbon_indices]
-        elif self.descriptor == "heavy_atom":
-            descriptors = positions[:, self.heavy_atom_indices]
+            descriptors = ComputeDistances(ca_positions)
         else:
             raise ValueError(f"Representation {self.descriptor} not found")    
         
@@ -217,39 +213,40 @@ class SMDs:
             smd = SteeredMolecularDynamics(cfg, cfg.start_state)
             self.smds.append(smd)
 
-    def metrics(self, positions, potentials, threshold):
+    def metrics(self, ca_positions, potentials, threshold):
         metrics = {}
-        rmsd = 10 * kabsch_rmsd(positions[:, self.alpha_carbon_indices], self.goal_position[:, self.alpha_carbon_indices]) # nm to angstrom
-        metrics["rmsd"] = rmsd.mean().item()
-        metrics["rmsd_std"] = rmsd.std().item()
+        rmsds = 10 * kabsch_rmsd(ca_positions, self.goal_ca_position) # nm to angstrom
 
-        hit = rmsd < threshold
+        hit = rmsds < threshold
         thp = 100 * hit.sum().item() / len(hit)
+        
+        max_potentials = potentials.max(dim=1)[0]
+        etss = max_potentials[hit]
+
+        metrics["rmsd"] = rmsds.mean().item()
+        metrics["rmsd_std"] = rmsds.std().item()
         metrics["thp"] = thp
+        metrics["ets"] = etss.mean().item()
+        metrics["ets_std"] = etss.std().item()
 
-        etss = []
-        for i, hit_idx in enumerate(hit):
-            if hit_idx:
-                ets = potentials[i].max(0)[0]
-                etss.append(ets)
+        return metrics, rmsds, etss
 
-        if thp > 0:
-            etss = torch.tensor(etss)
-            metrics["ets"] = etss.mean().item()
-            metrics["ets_std"] = etss.std().item()
-
-        return metrics
-
-    def plot(self, positions, potentials):
+    def plot(self, ca_positions, potentials, biased_potentials, total_potentials, cvs, target_cvs):
         plots = {}
-        tica_plot = self.plot_paths(positions)
+        tica_plot = self.plot_paths(ca_positions)
         potentials_plot = self.plot_potentials(potentials)
+        biased_potentials_plot = self.plot_potentials(biased_potentials)
+        total_potentials_plot = self.plot_potentials(total_potentials)
+        cvs_plot = self.plot_cvs(cvs, target_cvs)
         plots["paths"] = tica_plot
         plots["potentials"] = potentials_plot
+        plots["biased_potentials"] = biased_potentials_plot
+        plots["total_potentials"] = total_potentials_plot
+        plots["cvs"] = cvs_plot
         return plots
 
     # Plots
-    def plot_paths(self, positions):
+    def plot_paths(self, ca_positions):
         tica_cvs = np.load(f"./data/{self.molecule}/tica_cvs.npy")
 
         tica_wrapper = TICA_WRAPPER(
@@ -261,8 +258,8 @@ class SMDs:
         tic1 = tica_cvs[:, 0]
         tic2 = tica_cvs[:, 1]
 
-        positions_reshaped = positions.cpu().numpy().reshape(-1, *positions.shape[2:])
-        path_tica_cvs = tica_wrapper.transform(tica_wrapper.pos2cad(positions_reshaped)).reshape(*positions.shape[:2], 2)
+        ca_positions_reshaped = ca_positions.detach().cpu().numpy().reshape(-1, *ca_positions.shape[2:])
+        path_tica_cvs = tica_wrapper.transform(tica_wrapper.pos2cad(ca_positions_reshaped)).reshape(*ca_positions.shape[:2], 2)
         path_tic1 = path_tica_cvs[:, :, 0]
         path_tic2 = path_tica_cvs[:, :, 1]
 
@@ -283,11 +280,11 @@ class SMDs:
             ax.scatter(path_tic1[i], path_tic2[i], color=colors[i], s=5, zorder=3, rasterized=True)
 
         # Transform start and goal positions through TICA and add as stars
-        start_pos_reshaped = self.start_position.cpu().numpy().reshape(-1, *self.start_position.shape[1:])
-        goal_pos_reshaped = self.goal_position.cpu().numpy().reshape(-1, *self.goal_position.shape[1:])
+        start_ca_pos_reshaped = self.start_ca_position.detach().cpu().numpy().reshape(-1, *self.start_ca_position.shape[1:])
+        goal_ca_pos_reshaped = self.goal_ca_position.detach().cpu().numpy().reshape(-1, *self.goal_ca_position.shape[1:])
         
-        start_tica_cv = tica_wrapper.transform(tica_wrapper.pos2cad(start_pos_reshaped)).reshape(*self.start_position.shape[:1], 2)
-        goal_tica_cv = tica_wrapper.transform(tica_wrapper.pos2cad(goal_pos_reshaped)).reshape(*self.goal_position.shape[:1], 2)
+        start_tica_cv = tica_wrapper.transform(tica_wrapper.pos2cad(start_ca_pos_reshaped)).reshape(*self.start_ca_position.shape[:1], 2)
+        goal_tica_cv = tica_wrapper.transform(tica_wrapper.pos2cad(goal_ca_pos_reshaped)).reshape(*self.goal_ca_position.shape[:1], 2)
         
         start_tic1, start_tic2 = start_tica_cv[:, 0], start_tica_cv[:, 1]
         goal_tic1, goal_tic2 = goal_tica_cv[:, 0], goal_tica_cv[:, 1]
@@ -305,12 +302,27 @@ class SMDs:
         ax.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=4))
         return fig
 
-
     def plot_potentials(self, potentials):
-        potentials = potentials.cpu().numpy()
+        potentials = potentials.detach().cpu().numpy()
         fig = plt.figure(figsize=(7, 7))
 
         colors = plt.cm.plasma(np.linspace(0, 1, potentials.shape[0]))
         for i in range(potentials.shape[0]):
-            plt.plot(potentials[i], color=colors[i])
+            plt.plot(potentials[i], color=colors[i], label=f'Path {i+1}')
+        plt.legend(fontsize=FONTSIZE_SMALL)
+        plt.xlabel("Step", fontsize=FONTSIZE_SMALL)
+        plt.ylabel("Potential", fontsize=FONTSIZE_SMALL)
+        return fig
+
+    def plot_cvs(self, cvs, target_cvs):
+        cvs = cvs.detach().cpu().numpy()
+        target_cvs = target_cvs.detach().cpu().numpy()
+        fig = plt.figure(figsize=(7, 7))
+        colors = plt.cm.plasma(np.linspace(0, 1, cvs.shape[0]))
+        for i in range(cvs.shape[0]):
+            plt.plot(cvs[i], color=colors[i], label=f'CV Path {i+1}')
+        plt.plot(target_cvs[0], color='black', linestyle='--', label='Target CV')
+        plt.legend(fontsize=FONTSIZE_SMALL)
+        plt.xlabel("Step", fontsize=FONTSIZE_SMALL)
+        plt.ylabel("CV", fontsize=FONTSIZE_SMALL)
         return fig

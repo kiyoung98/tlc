@@ -1,0 +1,10 @@
+defaults:
+  - base
+
+model:
+  name: deeptica
+
+logger:
+  tags:
+  - chignolin_implicit
+  - deeptica

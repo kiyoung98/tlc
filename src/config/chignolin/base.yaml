@@ -3,11 +3,12 @@ model:
   name: null
   checkpoint: True
   checkpoint_path: /home/kiyoung/tlc/models
-  descriptor: alpha_carbon_distance
+  descriptor: pairwise_distance
 
 # Logger configuration  
 logger:
   name: wandb
+  enable: False  # Set to False to disable wandb logging
   project: mlcv
   log_model: False
   tags:
@@ -24,9 +25,9 @@ rmsd_threshold: 10 # angstrom
 simulation:
   k: 10000  # Default value, can be overridden
   timestep: 1
-  num_steps: 10000
+  num_steps: 100000
   friction: 0.001
   temperature: 340
-  force_field: ["charmm36.xml", "implicit/gbn2.xml"]
+  force_field: ["charmm36.xml", "charmm36/water.xml"]
   platform: CUDA
   precision: mixed

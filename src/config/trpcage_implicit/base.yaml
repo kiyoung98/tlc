@@ -12,10 +12,10 @@ logger:
   project: mlcv
   log_model: False
   tags:
-  - trpcage
+  - trpcage_implicit
 
 # Molecule configuration
-molecule: trpcage
+molecule: trpcage_implicit
 start_state: unfolded
 goal_state: folded
 num_samples: 2
@@ -28,6 +28,6 @@ simulation:
   num_steps: 100000
   friction: 0.001
   temperature: 290
-  force_field: ["charmm36.xml", "charmm36/water.xml"]
+  force_field: ["charmm36.xml", "implicit/gbn2.xml"]
   platform: CUDA
   precision: mixed

@@ -2,9 +2,9 @@ defaults:
   - base
 
 model:
-  name: rmsd
+  name: tae
 
 logger:
   tags:
-  - chignolin
-  - rmsd
+  - chignolin_implicit
+  - tae
