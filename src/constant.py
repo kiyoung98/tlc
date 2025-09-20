@@ -17,6 +17,7 @@ MOLECULES = [
   "trpcage",
   "chignolin_implicit",
   "trpcage_implicit",
+  "chignolin_test",
 ]
 
 COLORS = [

@@ -1,0 +1,33 @@
+# Base configuration for chignolin experiments
+model:
+  name: null
+  checkpoint: True
+  checkpoint_path: models
+  descriptor: pairwise_distance
+
+# Logger configuration  
+logger:
+  name: wandb
+  enable: False  # Set to False to disable wandb logging
+  project: mlcv
+  log_model: False
+  tags:
+  - chignolin_test
+
+# Molecule configuration
+molecule: chignolin_test
+start_state: unfolded
+goal_state: folded
+num_samples: 2
+rmsd_threshold: 10 # angstrom
+
+# Simulation configuration
+simulation:
+  k: 2000  # Default value, can be overridden
+  timestep: 1
+  num_steps: 100000
+  friction: 0.001
+  temperature: 340
+  force_field: ["charmm36.xml", "charmm36/water.xml"]
+  platform: CUDA
+  precision: mixed

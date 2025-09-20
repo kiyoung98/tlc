@@ -38,7 +38,7 @@ class SteeredMolecularDynamics:
         pdb = app.PDBFile(f"./data/{cfg.molecule}/{state}.pdb")
         forcefield = app.ForceField(*cfg.simulation.force_field)
 
-        if cfg.molecule in ["chignolin", "trpcage"]:
+        if cfg.molecule in ["chignolin", "trpcage", "chignolin_test"]:
             system = forcefield.createSystem(
                 pdb.topology,
                 nonbondedMethod=app.PME, 
@@ -252,7 +252,7 @@ class SMDs:
         tica_wrapper = TICA_WRAPPER(
             tica_model_path=f"./data/{self.molecule}/tica_model.pkl",
             pdb_path=f"./data/{self.molecule}/folded.pdb",
-            tica_switch=True if self.molecule == "chignolin" else False
+            tica_switch=True if "chignolin" in self.molecule else False
         )
 
         tic1 = tica_cvs[:, 0]
