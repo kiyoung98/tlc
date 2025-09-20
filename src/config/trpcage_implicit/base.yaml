@@ -2,7 +2,7 @@
 model:
   name: null
   checkpoint: True
-  checkpoint_path: /home/kiyoung/tlc/models
+  checkpoint_path: models
   descriptor: pairwise_distance
 
 # Logger configuration  

@@ -2,7 +2,7 @@
 model:
   name: null
   checkpoint: True
-  checkpoint_path: /home/kiyoung/tlc/models
+  checkpoint_path: models
   descriptor: pairwise_distance
 
 # Logger configuration  
@@ -23,7 +23,7 @@ rmsd_threshold: 10 # angstrom
 
 # Simulation configuration
 simulation:
-  k: 10000  # Default value, can be overridden
+  k: 2000  # Default value, can be overridden
   timestep: 1
   num_steps: 100000
   friction: 0.001

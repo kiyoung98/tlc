@@ -19,8 +19,8 @@ def run_experiment(molecule, method, k, gpu_id=None):
         "--config-path", f"config/{molecule}",
         "--config-name", method,
         f"simulation.k={k}",
-        "simulation.timestep=2",
-        "simulation.num_steps=100000",
+        "num_samples=16",
+        "simulation.num_steps=500000",
     ]
     
     # Set GPU environment variable
@@ -29,7 +29,7 @@ def run_experiment(molecule, method, k, gpu_id=None):
         env["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd="/home/kiyoung/tlc", env=env)
+        result = subprocess.run(cmd, capture_output=True, text=True, env=env)
         if result.returncode != 0:
             print(f"Error in {molecule}/{method}/{k}{gpu_info}: {result.stderr}")
             return False
